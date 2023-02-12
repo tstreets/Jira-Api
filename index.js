@@ -1,19 +1,33 @@
 const http = require('http');
 const express = require('express');
 const jiraJs = require('jira.js');
+const credentials = require('./credentials');
 
 const jira = new jiraJs.Version3Client({
-	host: 'https://ty-streets-dev.atlassian.net',
+	host: credentials.host,
 	authentication: {
 		basic: {
-			username: 'streetso71@gmail.com',
-			password: 'API_TOKEN',
+			username: credentials.email,
+			password: credentials.apiToken,
 		},
 	},
 	newErrorHandling: true, // This flag enable new error handling.
 });
 
 const app = express();
+
+app.get('/api/issue/:key/update', async (req, res) => {
+	try {
+		const resp = await jira.issues.editIssue({
+			issueIdOrKey: req.params.key,
+			fields: { summary: 'Something Else' },
+		});
+
+		res.status(200).json({ msg: 'Working', resp });
+	} catch (E) {
+		res.status(400).json({ error: E });
+	}
+});
 
 app.get('/api/issue/:key', async (req, res) => {
 	try {
