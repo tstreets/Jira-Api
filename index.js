@@ -1,49 +1,70 @@
 const http = require('http');
 const express = require('express');
 const jiraJs = require('jira.js');
-const credentials = require('./credentials');
 
-const jira = new jiraJs.Version3Client({
-	host: credentials.host,
-	authentication: {
-		basic: {
-			username: credentials.email,
-			password: credentials.apiToken,
+function getJiraClient({ host, email, token }) {
+	if (!host || !email || !token) throw new Error('Invalid Jira Credentials');
+	return new jiraJs.Version3Client({
+		host: host,
+		authentication: {
+			basic: {
+				username: email,
+				password: token,
+			},
 		},
-	},
-	newErrorHandling: true, // This flag enable new error handling.
-});
+		newErrorHandling: true, // This flag enable new error handling.
+	});
+}
 
 const app = express();
 
 app.get('/api/issue/:key/update', async (req, res) => {
 	try {
-		const resp = await jira.issues.editIssue({
+		const { jirahost, jiraemail, jiratoken } = req.headers;
+		const jira2 = getJiraClient({
+			email: jiraemail,
+			host: jirahost,
+			token: jiratoken,
+		});
+		const resp = await jira2.issues.editIssue({
 			issueIdOrKey: req.params.key,
 			fields: { summary: 'Something Else' },
 		});
 
 		res.status(200).json({ msg: 'Working', resp });
 	} catch (E) {
-		res.status(400).json({ error: E });
+		res.status(400).json({ error: `${E}` });
 	}
 });
 
 app.get('/api/issue/:key', async (req, res) => {
 	try {
-		const resp = await jira.issues.getIssue({
+		const { jirahost, jiraemail, jiratoken } = req.headers;
+		const jira2 = getJiraClient({
+			email: jiraemail,
+			host: jirahost,
+			token: jiratoken,
+		});
+		const resp = await jira2.issues.getIssue({
 			issueIdOrKey: req.params.key,
 		});
 		res.status(200).json({ msg: 'Working', resp });
 	} catch (E) {
-		res.status(400).json({ error: E });
+		res.status(400).json({ error: `${E}` });
 	}
 });
 
 app.get('/api/issues', async (req, res) => {
 	try {
+		const { jirahost, jiraemail, jiratoken } = req.headers;
+		const jira2 = getJiraClient({
+			email: jiraemail,
+			host: jirahost,
+			token: jiratoken,
+		});
+
 		const { total: totalIssues } =
-			await jira.issueSearch.searchForIssuesUsingJql({
+			await jira2.issueSearch.searchForIssuesUsingJql({
 				jql: 'project = "PER" and (type = Epic or status in ("To Do", "In Progress")) ORDER BY created DESC',
 				maxResults: 0,
 			});
@@ -51,7 +72,7 @@ app.get('/api/issues', async (req, res) => {
 		const issues = [];
 		for (let i = 0; i < Math.ceil(totalIssues / 100); i++) {
 			const { issues: newIssues } =
-				await jira.issueSearch.searchForIssuesUsingJql({
+				await jira2.issueSearch.searchForIssuesUsingJql({
 					jql: 'project = "PER" and (type = Epic or status in ("To Do", "In Progress")) ORDER BY created DESC',
 					startAt: 100 * i,
 				});
@@ -60,7 +81,7 @@ app.get('/api/issues', async (req, res) => {
 
 		res.status(200).json({ msg: 'Working', issues: issues });
 	} catch (E) {
-		res.status(400).json({ error: E });
+		res.status(400).json({ error: `${E}` });
 	}
 });
 
